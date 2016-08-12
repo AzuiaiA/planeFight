@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>飞机大战0.3.0</title>
+	<style>
+		body{text-align:center;}
+		#container{position:relative;width:500px;height:600px;margin:0 auto;border:1px solid #ddd;overflow:hidden;background: url("img/bg.jpg");}
+		#start{position:absolute;bottom:50px;left:200px;width:100px;height:30px;line-height:30px;border:1px solid #666;text-align:center;border-radius:10px;}
+		#start:hover{background-color:#fc0;}
+
+		#logo{position:absolute;top:50px;left:35px;width:428px;height:104px;background:url("img/logo.png");}
+
+		#loading{position:absolute;top:300px;left:150px;width:192px;height:41px;background:url("img/loading.gif");}
+
+		.plane{position:absolute;}
+
+		.bullet{position: absolute;}
+
+		.enemy{position:absolute;}
+
+		#scoreBoard{border-radius:5px;margin-bottom:10px;width:100px;text-align:center;}
+	</style>
+	<script type="text/javascript" src="js/common.js"></script>
+	<script>
+		window.onload = function(){
+			/*
+				我方飞机：
+					属性：
+						1）飞机外观
+						2）飞机移动速度
+						3）子弹外观
+						4）子弹飞行速度
+					方法：
+						1）方向键移动
+						2）射击
+
+				敌机：
+					1）向下移动
+					2）攻击
+					3）随机位置
+			 */
+			
+			// 获取页面元素
+			var container = document.getElementById('container');
+			var btnStart = document.getElementById('start');
+			var logo = document.getElementById("logo");
+			var loading = document.getElementById("loading");
+
+			// 点击开始游戏
+			btnStart.onclick = function(){
+				init();
+				container.removeChild(btnStart);
+				container.removeChild(logo);
+				container.removeChild(loading);
+			}
+
+			/*
+				初始化游戏
+					1）生成我方飞机
+					2）随机生成敌机
+			 */
+			function init(){
+				// 设置位置（默认底部中间）
+				var x = container.offsetWidth/2;
+				var y = container.offsetHeight;
+				new Plane({left:x,top:y}).init().fire();
+
+				setInterval(function(){
+					new Enemy();
+				},1000);
+			}
+
+			// 飞机构造函数
+			function Plane(options){console.log(options)
+				var defaults = {
+					src:'img/myplane.gif',//飞机外观
+					speed:10,//移动速度
+					direction:'top',//飞机朝向
+					control:true,//生成的飞机是否可控制
+					type:'plane',//飞机类型，同时作为css类名
+					
+					//初始位置
+					// left:100,
+					// top:100,
+				}
+				
+				var opt = extend(defaults,options);
+				this.prop = opt;
+
+			}
+
+			// 飞机初始化
+			Plane.prototype.init = function(){
+				var self = this;
+				var prop = this.prop;
+				var _plane = document.createElement('div');
+				_plane.className = prop.type;
+				_plane.innerHTML = '<img src="'+prop.src+'">';
+
+				
+				container.appendChild(_plane);
+				this[0] = _plane;
+
+				_plane.children[0].onload = function(){
+					self.setPosition(prop.left,prop.top);
+				}
+				
+				// 设置飞机可控
+				if(prop.control){
+					this.addControl();
+				}
+				return this;
+			}
+			Plane.prototype.addControl = function(){
+				var self = this;
+				var _plane = this[0];
+				var prop = this.prop;
+				var x,y;
+				// 方向键控制飞机
+				document.onkeydown = function(e){
+					switch(e.keyCode){
+						case 37:
+							x = _plane.offsetLeft - prop.speed;
+							break;
+						case 39:
+							x = _plane.offsetLeft + prop.speed;
+							break;
+						case 38:
+							y = _plane.offsetTop - prop.speed;
+							break;
+						case 40:
+							y = _plane.offsetTop + prop.speed;
+							break;
+					};
+					self.setPosition(x,y);
+				}
+
+				return this;
+			}
+			Plane.prototype.setPosition = function(x,y){
+				var _plane = this[0];
+
+				// 能移动的最大left、top值
+				var maxLeft = container.offsetWidth - _plane.offsetWidth;
+				var maxTop = container.offsetHeight - _plane.offsetHeight;
+				if(x < 0){
+					x = 0;
+				}else if(x > maxLeft){
+					x = maxLeft;
+				}
+
+				if(y < 0){
+					y = 0;
+				}else if(y > maxTop){
+					y = maxTop;
+				}
+				_plane.style.left = x + 'px';
+				_plane.style.top = y + 'px';
+
+				return this;
+			}
+			Plane.prototype.fire = function(){
+				var _plane = this[0];
+				setInterval(function(){
+					new Bullet({left:_plane.offsetLeft + _plane.offsetWidth/2,top:_plane.offsetTop});
+				},200);
+
+				return this;
+			}
+
+			// 子弹构造函数
+			function Bullet(options){
+				var defaults = {
+					src:'img/bullet.png',//子弹外观
+					speed:-3,//移动速度
+					// pos:{x:0,y:0},//子弹开始坐标
+				}
+				var opt = extend(defaults,options);
+
+				this.src = opt.src;
+				this.speed = opt.speed;
+				this.left = opt.left;
+				this.top = opt.top;
+
+				this.init().move();
+			}
+			Bullet.prototype.init = function(){
+				var _bullet = document.createElement('div');
+				_bullet.className = 'bullet';
+				_bullet.innerHTML = '<img src="'+this.src+'">';
+
+				// 设置初始位置
+				_bullet.style.left = this.left + 'px';
+				_bullet.style.top = this.top + 'px';
+
+				container.appendChild(_bullet);
+				this[0] = _bullet;
+
+				return this;
+			}
+			Bullet.prototype.move = function(){
+				var self = this;
+				var _bullet = this[0];
+				_bullet.timer = setInterval(function(){
+
+					_bullet.style.top = _bullet.offsetTop + self.speed + 'px';
+
+					// 击中敌机
+					var enemy = container.getElementsByClassName('enemy');
+					for(var i=0;i<enemy.length;i++){
+						if(_bullet.offsetTop > enemy[i].offsetTop &&  _bullet.offsetTop <= enemy[i].offsetTop + enemy[i].offsetHeight && _bullet.offsetLeft > enemy[i].offsetLeft && _bullet.offsetLeft < enemy[i].offsetLeft + enemy[i].offsetWidth){
+
+							//敌机被击毁的动画
+							self.src = 'img/enemy_die.gif';
+							enemy[i].innerHTML = '<img src="'+self.src+'">';
+							enemy[i].style.opacity = "0.9"; 
+							setTimeout(function(){
+								for(var j=0;j<enemy.length;j++){
+									if(enemy[j].style.opacity == 0.9){
+										container.removeChild(enemy[j]);
+										//击毁敌机加分
+										var scoreBoard = parseInt(document.getElementById("scoreBoard").value);
+										scoreBoard += 10;
+										document.getElementById("scoreBoard").value = scoreBoard;	
+									}
+								}								
+							},1000);
+
+
+							container.removeChild(_bullet);	
+							clearInterval(_bullet.timer);
+							clearInterval(enemy[i].timer);
+						}
+					}
+
+					// 出边界移除DOM
+					if(_bullet.offsetTop < 0){
+						clearInterval(_bullet.timer);
+						container.removeChild(_bullet);
+					}
+				});
+
+				return this;
+			}
+
+			// 敌机构造函数
+			function Enemy(options){
+				var defaults = {
+					src:'img/enemy.png',//敌机外观
+					speed:3,//移动速度
+					direction:'bottom',
+					control:false,//敌机不可控制
+					type:'enemy',
+					left:randomNum(5,container.clientWidth-5),
+					top:0
+				}
+				var opt = extend(defaults,options);
+
+				// 继承飞机的所有属性
+				Plane.call(this,opt);
+
+				//是否被摧毁属性
+				this.noDestroy = true;
+
+				this.init().move();
+			}
+
+			// 继承Plane的方法
+			Enemy.prototype = Object.create(Plane.prototype);
+
+			// 添加敌机移动的方法
+			Enemy.prototype.move = function(){
+				var self = this;
+				var _plane = this[0];
+				var prop = this.prop;
+				_plane.timer = setInterval(function(){
+					_plane.style.top = _plane.offsetTop + prop.speed + 'px';
+
+					//敌机与我机撞击时
+					var myPlane = container.getElementsByClassName('plane')[0];
+					if((_plane.offsetTop+_plane.offsetHeight)>=(myPlane.offsetTop+33)&&((_plane.offsetLeft+_plane.offsetWidth)>(myPlane.offsetLeft)&&(_plane.offsetLeft)<(myPlane.offsetLeft+myPlane.offsetWidth))){
+
+						//改变我方飞机的图片
+						myPlane.innerHTML = '<img src="'+"img/myplane_die.gif"+'">';
+						var scoreBoard = document.getElementById("scoreBoard").value;
+						setTimeout(function(){
+							alert("您这次的得分是："+scoreBoard+" 下次努力！！");
+							location.reload();	
+						},500);	
+						
+					}
+
+
+					// 飞出边界移除
+					if(_plane.offsetTop > container.offsetHeight){
+						clearInterval(_plane.timer);
+						container.removeChild(_plane);
+					}
+				},50);
+
+				return this;
+			}
+
+			// 扩展对象
+			function extend(obj,deep){
+				/*
+					1）只传入一个参数
+						复制对象
+					2）传入两个对象
+						合并两个对象，后面覆盖前面同名属性
+					3）深度拷贝
+				 */
+				
+				// 输出结果对象
+				var target = {};
+				// 遍历过程中的属性
+				var attr;
+				// 遍历过程的临时变量,保存属性值
+				var val;
+
+				// 如果传入两个对象（即deep也是一个对象），则扩展第一个对象
+				if(typeof(deep) === 'object'){
+					target = obj;
+					obj = deep;
+					deep = arguments[2];
+				}
+				for(attr in obj){
+					val = obj[attr];
+
+					// 要扩展的原属性值
+					targetVal = target[attr];
+
+					// 深度拷贝
+					if(deep && typeof(val) == 'object'){
+						val = extend(val);
+					}
+
+					// 如果原来已经是一个对象，则扩展这个对象,否则直接覆盖原值
+					if(typeof(targetVal) === 'object'){
+					 	target[attr]= extend(targetVal,val);
+					}else{
+						target[attr] = val;
+					}
+				}
+				return target;
+			}
+
+			// 获取随机数
+			function randomNum(min,max){
+				var num = Math.floor(Math.random()*(max - min + 1)) + min;
+				return num;
+			}
+		}
+	</script>
+</head>
+<body>
+	得分：<input type="text" id="scoreBoard" value="0" disabled="disabled"/>
+	<div id="container">
+		<div id="logo"></div>
+		<div id="loading"></div>
+		<span id="start">开始</span>
+	</div>
+</body>
+</html>
